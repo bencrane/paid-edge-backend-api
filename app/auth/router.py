@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends
-from gotrue.errors import AuthApiError
+from supabase_auth.errors import AuthApiError
 
 from app.auth.models import (
     AuthTokens,
