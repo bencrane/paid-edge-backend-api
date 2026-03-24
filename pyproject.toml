@@ -6,6 +6,7 @@ requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115,<1",
     "uvicorn[standard]>=0.34,<1",
+    "pydantic[email]>=2.7,<3",
     "pydantic-settings>=2.7,<3",
     "supabase>=2.13,<3",
     "clickhouse-connect>=0.8,<1",
