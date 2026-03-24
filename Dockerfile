@@ -17,6 +17,6 @@ RUN pip install --no-cache-dir .
 
 COPY . .
 
-EXPOSE ${PORT:-8000}
+EXPOSE ${PORT:-8080}
 
-CMD ["sh", "-c", "if [ -n \"$DOPPLER_TOKEN_BACKEND_API\" ]; then export DOPPLER_TOKEN=\"$DOPPLER_TOKEN_BACKEND_API\" && doppler run -- uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}; else uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}; fi"]
+CMD ["sh", "-c", "if [ -n \"$DOPPLER_TOKEN_BACKEND_API\" ]; then export DOPPLER_TOKEN=\"$DOPPLER_TOKEN_BACKEND_API\" && doppler run -- uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080}; else uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080}; fi"]
