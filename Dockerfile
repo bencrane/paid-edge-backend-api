@@ -1,5 +1,7 @@
 FROM python:3.12-slim
 
+WORKDIR /app
+
 RUN apt-get update && apt-get install -y \
     apt-transport-https ca-certificates curl gnupg \
     && curl -sLf --retry 3 --tlsv1.2 --proto "=https" \
@@ -10,8 +12,6 @@ RUN apt-get update && apt-get install -y \
     && apt-get update && apt-get install -y doppler \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /app
-
 COPY pyproject.toml .
 RUN pip install --no-cache-dir .
 
@@ -19,4 +19,4 @@ COPY . .
 
 EXPOSE 8080
 
-CMD ["sh", "-c", "if [ -n \"$DOPPLER_TOKEN_BACKEND_API\" ]; then export DOPPLER_TOKEN=\"$DOPPLER_TOKEN_BACKEND_API\" && doppler run -- uvicorn app.main:app --host 0.0.0.0 --port 8080; else uvicorn app.main:app --host 0.0.0.0 --port 8080; fi"]
+CMD ["doppler", "run", "--", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
