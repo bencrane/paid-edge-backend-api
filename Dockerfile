@@ -20,4 +20,4 @@ RUN npm run build
 
 EXPOSE 8080
 
-CMD ["doppler", "run", "--", "npm", "run", "start"]
+CMD ["sh", "-c", "export DOPPLER_TOKEN=\"${DOPPLER_TOKEN_BACKEND_API:?DOPPLER_TOKEN_BACKEND_API is required}\" && doppler run -- npm run start"]
