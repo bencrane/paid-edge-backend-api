@@ -19,4 +19,4 @@ COPY . .
 
 EXPOSE 8000
 
-CMD ["sh", "-c", "export DOPPLER_TOKEN=\"${DOPPLER_TOKEN_BACKEND_API:?DOPPLER_TOKEN_BACKEND_API is required}\" && doppler run -- uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+CMD ["sh", "-c", "if [ -n \"$DOPPLER_TOKEN_BACKEND_API\" ]; then export DOPPLER_TOKEN=\"$DOPPLER_TOKEN_BACKEND_API\" && doppler run -- uvicorn app.main:app --host 0.0.0.0 --port 8000; else uvicorn app.main:app --host 0.0.0.0 --port 8000; fi"]
