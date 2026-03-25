@@ -4,8 +4,8 @@ from supabase_auth.errors import AuthApiError
 from app.auth.models import (
     AuthTokens,
     LoginRequest,
-    MeResponse,
     MembershipInfo,
+    MeResponse,
     RefreshRequest,
     SignupRequest,
     UserProfile,

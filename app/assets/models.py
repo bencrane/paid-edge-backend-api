@@ -1,9 +1,10 @@
+from typing import Literal, Union
+
 from pydantic import BaseModel
-from typing import Optional, Literal, Union
 
 
 class BrandingConfig(BaseModel):
-    logo_url: Optional[str] = None
+    logo_url: str | None = None
     primary_color: str = "#00e87b"
     secondary_color: str = "#09090b"
     font_family: str = "Inter, sans-serif"
@@ -11,11 +12,11 @@ class BrandingConfig(BaseModel):
 
 
 class TrackingConfig(BaseModel):
-    rudderstack_write_key: Optional[str] = None
-    rudderstack_data_plane_url: Optional[str] = None
-    utm_source: Optional[str] = None
-    utm_medium: Optional[str] = None
-    utm_campaign: Optional[str] = None
+    rudderstack_write_key: str | None = None
+    rudderstack_data_plane_url: str | None = None
+    utm_source: str | None = None
+    utm_medium: str | None = None
+    utm_campaign: str | None = None
 
 
 class FormField(BaseModel):
@@ -28,8 +29,8 @@ class FormField(BaseModel):
 class Section(BaseModel):
     heading: str
     body: str
-    bullets: Optional[list[str]] = None
-    callout: Optional[str] = None
+    bullets: list[str] | None = None
+    callout: str | None = None
 
 
 class MetricCallout(BaseModel):
@@ -39,11 +40,11 @@ class MetricCallout(BaseModel):
 
 class SocialProofConfig(BaseModel):
     type: Literal["logos", "quote", "stats"]
-    logos: Optional[list[str]] = None
-    quote_text: Optional[str] = None
-    quote_author: Optional[str] = None
-    quote_title: Optional[str] = None
-    stats: Optional[list[MetricCallout]] = None
+    logos: list[str] | None = None
+    quote_text: str | None = None
+    quote_author: str | None = None
+    quote_title: str | None = None
+    stats: list[MetricCallout] | None = None
 
 
 class LeadMagnetPageInput(BaseModel):
@@ -55,20 +56,20 @@ class LeadMagnetPageInput(BaseModel):
     cta_text: str = "Download Now"
     branding: BrandingConfig
     tracking: TrackingConfig = TrackingConfig()
-    social_proof: Optional[SocialProofConfig] = None
-    hero_image_url: Optional[str] = None
+    social_proof: SocialProofConfig | None = None
+    hero_image_url: str | None = None
 
 
 class CaseStudyPageInput(BaseModel):
     template: Literal["case_study"] = "case_study"
     customer_name: str
-    customer_logo_url: Optional[str] = None
+    customer_logo_url: str | None = None
     headline: str
     sections: list[Section]
     metrics: list[MetricCallout]
-    quote_text: Optional[str] = None
-    quote_author: Optional[str] = None
-    quote_title: Optional[str] = None
+    quote_text: str | None = None
+    quote_author: str | None = None
+    quote_title: str | None = None
     cta_text: str = "Get Similar Results"
     form_fields: list[FormField] = []
     branding: BrandingConfig
@@ -93,7 +94,7 @@ class DemoRequestPageInput(BaseModel):
     headline: str
     subhead: str
     benefits: list[Section]
-    trust_signals: Optional[SocialProofConfig] = None
+    trust_signals: SocialProofConfig | None = None
     form_fields: list[FormField]
     cta_text: str = "Request Demo"
     branding: BrandingConfig
@@ -108,24 +109,24 @@ LandingPageInput = Union[
 class PDFSection(BaseModel):
     heading: str
     body: str
-    bullets: Optional[list[str]] = None
-    callout_box: Optional[str] = None
+    bullets: list[str] | None = None
+    callout_box: str | None = None
 
 
 class LeadMagnetPDFInput(BaseModel):
     title: str
-    subtitle: Optional[str] = None
+    subtitle: str | None = None
     sections: list[PDFSection]
     branding: BrandingConfig
 
 
 class Slide(BaseModel):
     headline: str
-    body: Optional[str] = None
-    stat_callout: Optional[str] = None
-    stat_label: Optional[str] = None
+    body: str | None = None
+    stat_callout: str | None = None
+    stat_label: str | None = None
     is_cta_slide: bool = False
-    cta_text: Optional[str] = None
+    cta_text: str | None = None
 
 
 class DocumentAdInput(BaseModel):

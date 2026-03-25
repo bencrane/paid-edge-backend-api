@@ -15,6 +15,12 @@ class Settings(BaseSettings):
     CLICKHOUSE_PASSWORD: str = ""
     CLICKHOUSE_DATABASE: str = "paid_edge"
 
+    # LinkedIn OAuth
+    LINKEDIN_CLIENT_ID: str = ""
+    LINKEDIN_CLIENT_SECRET: str = ""
+    LINKEDIN_REDIRECT_URI: str = ""
+    LINKEDIN_API_VERSION: str = "202603"
+
     # App
     APP_ENV: str = "development"
     APP_URL: str = "http://localhost:8000"

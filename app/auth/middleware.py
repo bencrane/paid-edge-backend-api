@@ -7,7 +7,13 @@ from app.config import settings
 
 # Paths that don't require authentication
 PUBLIC_PATHS = {"/health", "/docs", "/openapi.json", "/redoc"}
-PUBLIC_PREFIXES = ("/auth/signup", "/auth/login", "/auth/refresh", "/lp/")
+PUBLIC_PREFIXES = (
+    "/auth/signup",
+    "/auth/login",
+    "/auth/refresh",
+    "/auth/linkedin/callback",
+    "/lp/",
+)
 
 
 class JWTAuthMiddleware(BaseHTTPMiddleware):

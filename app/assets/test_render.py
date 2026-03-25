@@ -4,7 +4,6 @@ Render all templates with test content and verify output.
 Run: python -m app.assets.test_render
 """
 
-import os
 import sys
 from pathlib import Path
 
@@ -13,7 +12,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from jinja2 import Environment, FileSystemLoader
 
-from app.assets.models import DocumentAdInput
 from app.assets.renderers.document_ad_pdf import render_document_ad_pdf
 from app.assets.renderers.lead_magnet_pdf import render_lead_magnet_pdf
 from app.assets.test_content import (

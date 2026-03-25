@@ -1,50 +1,49 @@
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Optional
 
 from pydantic import BaseModel
 
 
 class CampaignSchedule(BaseModel):
-    start_date: Optional[date] = None
-    end_date: Optional[date] = None
+    start_date: date | None = None
+    end_date: date | None = None
 
 
 class CampaignCreate(BaseModel):
     name: str
-    description: Optional[str] = None
+    description: str | None = None
     platforms: list[str]
-    audience_segment_id: Optional[str] = None
-    budget: Optional[Decimal] = None
-    schedule: Optional[CampaignSchedule] = None
-    angle: Optional[str] = None
-    objective: Optional[str] = None
+    audience_segment_id: str | None = None
+    budget: Decimal | None = None
+    schedule: CampaignSchedule | None = None
+    angle: str | None = None
+    objective: str | None = None
 
 
 class CampaignUpdate(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    platforms: Optional[list[str]] = None
-    audience_segment_id: Optional[str] = None
-    budget: Optional[Decimal] = None
-    schedule: Optional[CampaignSchedule] = None
-    angle: Optional[str] = None
-    objective: Optional[str] = None
+    name: str | None = None
+    description: str | None = None
+    platforms: list[str] | None = None
+    audience_segment_id: str | None = None
+    budget: Decimal | None = None
+    schedule: CampaignSchedule | None = None
+    angle: str | None = None
+    objective: str | None = None
 
 
 class CampaignResponse(BaseModel):
     id: str
     organization_id: str
     name: str
-    description: Optional[str] = None
+    description: str | None = None
     status: str
     platforms: list[str]
-    audience_segment_id: Optional[str] = None
-    budget: Optional[Decimal] = None
-    schedule: Optional[CampaignSchedule] = None
-    angle: Optional[str] = None
-    objective: Optional[str] = None
-    tracked_link_url: Optional[str] = None
+    audience_segment_id: str | None = None
+    budget: Decimal | None = None
+    schedule: CampaignSchedule | None = None
+    angle: str | None = None
+    objective: str | None = None
+    tracked_link_url: str | None = None
     created_at: datetime
     updated_at: datetime
 
