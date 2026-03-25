@@ -396,18 +396,62 @@ class AssetGenerationService:
         return self._get_asset_or_404(asset_id, org_id)
 
     def list_campaign_assets(
-        self, campaign_id: str, org_id: str
+        self,
+        campaign_id: str,
+        org_id: str,
+        *,
+        status: str | None = None,
+        asset_type: str | None = None,
     ) -> list[dict]:
-        """List all assets for a campaign."""
-        res = (
+        """List all assets for a campaign with optional filters."""
+        query = (
             self.supabase.table("generated_assets")
             .select("*")
             .eq("campaign_id", campaign_id)
             .eq("organization_id", org_id)
-            .order("created_at", desc=True)
-            .execute()
         )
+        if status:
+            query = query.eq("status", status)
+        if asset_type:
+            query = query.eq("asset_type", asset_type)
+        res = query.order("created_at", desc=True).execute()
         return res.data or []
+
+    def update_asset(
+        self,
+        asset_id: str,
+        org_id: str,
+        *,
+        content_json: dict | None = None,
+        content_url: str | None = None,
+        status: str | None = None,
+    ) -> dict:
+        """Direct content update — edit stored content without AI re-generation."""
+        row = self._get_asset_or_404(asset_id, org_id)
+
+        update_data: dict[str, Any] = {}
+        if content_json is not None:
+            update_data["content_json"] = content_json
+        if content_url is not None:
+            update_data["content_url"] = content_url
+        if status is not None:
+            _VALID_STATUSES = {"draft", "approved", "generating", "failed"}
+            if status not in _VALID_STATUSES:
+                raise BadRequestError(
+                    detail=f"Invalid status '{status}'. "
+                    f"Valid: {sorted(_VALID_STATUSES)}"
+                )
+            update_data["status"] = status
+
+        if not update_data:
+            return row
+
+        self.supabase.table("generated_assets").update(
+            update_data
+        ).eq("id", asset_id).execute()
+
+        row.update(update_data)
+        return row
 
     def _get_asset_or_404(self, asset_id: str, org_id: str) -> dict:
         """Fetch a single asset scoped to org, raise 404 if missing."""
