@@ -13,6 +13,7 @@ PUBLIC_PREFIXES = (
     "/auth/refresh",
     "/auth/linkedin/callback",
     "/auth/meta/callback",
+    "/auth/google-ads/callback",
     "/lp/",
 )
 
