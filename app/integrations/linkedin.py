@@ -10,8 +10,10 @@ from app.integrations.linkedin_auth import get_valid_linkedin_token
 from app.integrations.linkedin_models import (
     LinkedInAdAccount,
     LinkedInAPIErrorDetail,
+    LinkedInCampaign,
     LinkedInCampaignGroup,
 )
+from app.integrations.linkedin_targeting import validate_campaign_config
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +80,20 @@ def make_campaign_urn(campaign_id: int) -> str:
 
 def make_org_urn(org_id: int) -> str:
     return f"urn:li:organization:{org_id}"
+
+
+def make_campaign_group_urn(group_id: int) -> str:
+    return f"urn:li:sponsoredCampaignGroup:{group_id}"
+
+
+# Valid status transitions for campaigns
+_VALID_STATUS_TRANSITIONS: dict[str, set[str]] = {
+    "DRAFT": {"ACTIVE", "ARCHIVED"},
+    "ACTIVE": {"PAUSED", "ARCHIVED"},
+    "PAUSED": {"ACTIVE", "ARCHIVED"},
+    "COMPLETED": {"ARCHIVED"},
+    "CANCELED": {"ARCHIVED"},
+}
 
 
 # --- Base client ---
@@ -320,6 +336,139 @@ class LinkedInAdsClient:
         selected = res.data["config"].get("selected_ad_account_id")
         if not selected:
             raise LinkedInAPIError(
-                400, None, "No LinkedIn ad account selected. Please select one in settings."
+                400,
+                None,
+                "No LinkedIn ad account selected. "
+                "Please select one in settings.",
             )
         return int(selected)
+
+    # --- Campaign methods ---
+
+    async def create_campaign(
+        self,
+        account_id: int,
+        campaign_group_id: int,
+        name: str,
+        campaign_type: str,
+        objective: str,
+        targeting: dict,
+        daily_budget: dict,
+        cost_type: str,
+        unit_cost: dict | None = None,
+        run_schedule: dict | None = None,
+        offsite_delivery: bool = False,
+        status: str = "DRAFT",
+    ) -> dict[str, Any]:
+        """Create a LinkedIn campaign."""
+        validate_campaign_config(
+            objective, campaign_type, cost_type, offsite_delivery
+        )
+
+        body: dict[str, Any] = {
+            "account": make_account_urn(account_id),
+            "campaignGroup": make_campaign_group_urn(campaign_group_id),
+            "name": name,
+            "type": campaign_type,
+            "objectiveType": objective,
+            "costType": cost_type,
+            "status": status,
+            "locale": {"country": "US", "language": "en"},
+            "offsiteDeliveryEnabled": offsite_delivery,
+            "dailyBudget": daily_budget,
+            "targetingCriteria": targeting,
+        }
+        if unit_cost:
+            body["unitCost"] = unit_cost
+        if run_schedule:
+            body["runSchedule"] = run_schedule
+
+        return await self.post(
+            f"/adAccounts/{account_id}/adCampaigns", json=body
+        )
+
+    async def get_campaigns(
+        self,
+        account_id: int,
+        statuses: list[str] | None = None,
+    ) -> list[LinkedInCampaign]:
+        """List campaigns for an ad account, filtered by status."""
+        if statuses is None:
+            statuses = ["ACTIVE", "PAUSED", "DRAFT"]
+        status_values = ",".join(statuses)
+        resp = await self.get(
+            f"/adAccounts/{account_id}/adCampaigns",
+            params={
+                "q": "search",
+                "search": f"(status:(values:List({status_values})))",
+            },
+        )
+        campaigns = []
+        for el in resp.get("elements", []):
+            cid = extract_id_from_urn(
+                el.get("id", el.get("urn", ""))
+            )
+            campaigns.append(
+                LinkedInCampaign(
+                    id=cid,
+                    name=el.get("name", ""),
+                    status=el.get("status", ""),
+                    type=el.get("type", ""),
+                    objective_type=el.get("objectiveType"),
+                    cost_type=el.get("costType", ""),
+                    daily_budget=el.get("dailyBudget"),
+                    total_budget=el.get("totalBudget"),
+                    unit_cost=el.get("unitCost"),
+                    targeting_criteria=el.get("targetingCriteria"),
+                    run_schedule=el.get("runSchedule"),
+                    offsite_delivery_enabled=el.get(
+                        "offsiteDeliveryEnabled", False
+                    ),
+                    campaign_group_urn=el.get("campaignGroup"),
+                    account_urn=el.get("account"),
+                )
+            )
+        return campaigns
+
+    async def get_campaign(
+        self, account_id: int, campaign_id: int
+    ) -> dict[str, Any]:
+        """Get a single campaign's full details."""
+        return await self.get(
+            f"/adAccounts/{account_id}/adCampaigns/{campaign_id}"
+        )
+
+    async def update_campaign(
+        self,
+        account_id: int,
+        campaign_id: int,
+        updates: dict[str, Any],
+    ) -> None:
+        """Update campaign fields using Rest.li PATCH $set format."""
+        await self.patch(
+            f"/adAccounts/{account_id}/adCampaigns/{campaign_id}",
+            json={"patch": {"$set": updates}},
+        )
+
+    async def update_campaign_status(
+        self, account_id: int, campaign_id: int, status: str
+    ) -> None:
+        """Convenience method for status transitions with validation.
+
+        Valid: DRAFT→ACTIVE, ACTIVE→PAUSED, PAUSED→ACTIVE, *→ARCHIVED
+        """
+        # Fetch current status to validate the transition
+        campaign = await self.get_campaign(account_id, campaign_id)
+        current = campaign.get("status", "")
+
+        allowed = _VALID_STATUS_TRANSITIONS.get(current)
+        if allowed is None or status not in allowed:
+            raise LinkedInAPIError(
+                400,
+                None,
+                f"Invalid status transition: {current} → {status}. "
+                f"Allowed from {current}: "
+                f"{sorted(allowed) if allowed else 'none'}",
+            )
+
+        await self.update_campaign(account_id, campaign_id, {"status": status})
