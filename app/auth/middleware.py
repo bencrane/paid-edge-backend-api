@@ -12,6 +12,7 @@ PUBLIC_PREFIXES = (
     "/auth/login",
     "/auth/refresh",
     "/auth/linkedin/callback",
+    "/auth/meta/callback",
     "/lp/",
 )
 
