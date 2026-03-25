@@ -1,6 +1,7 @@
 import asyncio
 import hashlib
 import logging
+from datetime import date
 from typing import Any
 
 import httpx
@@ -97,6 +98,39 @@ def hash_email_for_linkedin(email: str) -> str:
     """
     normalized = email.lower().strip()
     return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+
+
+def to_linkedin_date(d: date) -> dict:
+    """Convert Python date to LinkedIn date format."""
+    return {"year": d.year, "month": d.month, "day": d.day}
+
+
+def from_linkedin_date(d: dict) -> date:
+    """Convert LinkedIn date format back to Python date."""
+    return date(d["year"], d["month"], d["day"])
+
+
+# --- Default analytics fields ---
+
+_DEFAULT_ANALYTICS_FIELDS = [
+    "impressions",
+    "clicks",
+    "costInLocalCurrency",
+    "costInUsd",
+    "externalWebsiteConversions",
+    "leadGenerationMailContactInfoShares",
+    "oneClickLeads",
+    "videoViews",
+    "videoCompletions",
+    "totalEngagements",
+    "likes",
+    "comments",
+    "shares",
+    "textUrlClicks",
+    "landingPageClicks",
+    "dateRange",
+    "pivotValue",
+]
 
 
 # Valid status transitions for campaigns
@@ -1078,3 +1112,134 @@ class LinkedInAdsClient:
 
         # Return last known status on timeout
         return await self.get_dmp_segment_status(segment_id)
+
+    # --- Analytics methods ---
+
+    async def get_campaign_analytics(
+        self,
+        account_id: int,
+        start_date: date,
+        end_date: date,
+        campaign_ids: list[int] | None = None,
+        pivot: str = "CAMPAIGN",
+        granularity: str = "DAILY",
+        fields: list[str] | None = None,
+    ) -> list[dict]:
+        """GET /adAnalytics for campaign performance.
+
+        start_date inclusive, end_date exclusive.
+        Max range: 730 days for DAILY granularity.
+        """
+        s = to_linkedin_date(start_date)
+        e = to_linkedin_date(end_date)
+        field_list = ",".join(fields or _DEFAULT_ANALYTICS_FIELDS)
+
+        params: dict[str, str] = {
+            "q": "analytics",
+            "pivot": pivot,
+            "dateRange": (
+                f"(start:(year:{s['year']},month:{s['month']},"
+                f"day:{s['day']}),"
+                f"end:(year:{e['year']},month:{e['month']},"
+                f"day:{e['day']}))"
+            ),
+            "timeGranularity": granularity,
+            "fields": field_list,
+        }
+
+        if campaign_ids:
+            urns = ",".join(
+                f"urn%3Ali%3AsponsoredCampaign%3A{cid}"
+                for cid in campaign_ids
+            )
+            params["campaigns"] = f"List({urns})"
+        else:
+            acct_urn = (
+                f"urn%3Ali%3AsponsoredAccount%3A{account_id}"
+            )
+            params["accounts"] = f"List({acct_urn})"
+
+        resp = await self.get("/adAnalytics", params=params)
+        elements = resp.get("elements", [])
+        if not elements:
+            logger.info(
+                "No analytics data for account %d (%s to %s)",
+                account_id,
+                start_date,
+                end_date,
+            )
+        return elements
+
+    async def get_creative_analytics(
+        self,
+        account_id: int,
+        start_date: date,
+        end_date: date,
+        campaign_id: int | None = None,
+        granularity: str = "DAILY",
+    ) -> list[dict]:
+        """Analytics pivoted by CREATIVE."""
+        s = to_linkedin_date(start_date)
+        e = to_linkedin_date(end_date)
+        field_list = ",".join(_DEFAULT_ANALYTICS_FIELDS)
+
+        params: dict[str, str] = {
+            "q": "analytics",
+            "pivot": "CREATIVE",
+            "dateRange": (
+                f"(start:(year:{s['year']},month:{s['month']},"
+                f"day:{s['day']}),"
+                f"end:(year:{e['year']},month:{e['month']},"
+                f"day:{e['day']}))"
+            ),
+            "timeGranularity": granularity,
+            "fields": field_list,
+        }
+
+        if campaign_id:
+            urn = f"urn%3Ali%3AsponsoredCampaign%3A{campaign_id}"
+            params["campaigns"] = f"List({urn})"
+        else:
+            acct_urn = (
+                f"urn%3Ali%3AsponsoredAccount%3A{account_id}"
+            )
+            params["accounts"] = f"List({acct_urn})"
+
+        resp = await self.get("/adAnalytics", params=params)
+        return resp.get("elements", [])
+
+    async def get_demographic_analytics(
+        self,
+        account_id: int,
+        start_date: date,
+        end_date: date,
+        pivot: str,
+    ) -> list[dict]:
+        """Audience demographic breakdown for a given pivot dimension.
+
+        Pivot: MEMBER_INDUSTRY, MEMBER_SENIORITY, MEMBER_JOB_FUNCTION,
+        MEMBER_COMPANY_SIZE, etc.
+        """
+        s = to_linkedin_date(start_date)
+        e = to_linkedin_date(end_date)
+        field_list = ",".join(_DEFAULT_ANALYTICS_FIELDS)
+
+        acct_urn = (
+            f"urn%3Ali%3AsponsoredAccount%3A{account_id}"
+        )
+        params: dict[str, str] = {
+            "q": "analytics",
+            "pivot": pivot,
+            "dateRange": (
+                f"(start:(year:{s['year']},month:{s['month']},"
+                f"day:{s['day']}),"
+                f"end:(year:{e['year']},month:{e['month']},"
+                f"day:{e['day']}))"
+            ),
+            "timeGranularity": "ALL",
+            "accounts": f"List({acct_urn})",
+            "fields": field_list,
+        }
+
+        resp = await self.get("/adAnalytics", params=params)
+        return resp.get("elements", [])
