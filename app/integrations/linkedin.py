@@ -1,7 +1,7 @@
 import asyncio
 import hashlib
 import logging
-from datetime import date
+from datetime import UTC, date, datetime
 from typing import Any
 
 import httpx
@@ -1242,4 +1242,213 @@ class LinkedInAdsClient:
         }
 
         resp = await self.get("/adAnalytics", params=params)
+        return resp.get("elements", [])
+
+    # --- Conversion rule methods (CAPI) ---
+
+    async def create_conversion_rule(
+        self,
+        account_id: int,
+        name: str,
+        conversion_type: str,
+        post_click_window: int = 30,
+        view_through_window: int = 7,
+        attribution_type: str = "LAST_TOUCH_BY_CAMPAIGN",
+    ) -> dict:
+        """POST /conversions — create a conversion rule on the ad account.
+
+        Returns conversion with URN (urn:lla:llaPartnerConversion:{id}).
+        """
+        return await self.post(
+            "/conversions",
+            json={
+                "name": name,
+                "account": make_account_urn(account_id),
+                "conversionMethod": "CONVERSIONS_API",
+                "postClickAttributionWindowSize": post_click_window,
+                "viewThroughAttributionWindowSize": view_through_window,
+                "attributionType": attribution_type,
+                "type": conversion_type,
+            },
+        )
+
+    async def list_conversion_rules(
+        self, account_id: int
+    ) -> list[dict]:
+        """List all conversion rules for the account."""
+        resp = await self.get(
+            "/conversions",
+            params={
+                "q": "account",
+                "account": make_account_urn(account_id),
+            },
+        )
+        return resp.get("elements", [])
+
+    async def delete_conversion_rule(
+        self, conversion_id: str
+    ) -> None:
+        """Delete a conversion rule."""
+        await self.delete(f"/conversions/{conversion_id}")
+
+    # --- Conversion event sending ---
+
+    async def send_conversion_event(
+        self,
+        conversion_urn: str,
+        email: str,
+        event_id: str,
+        value_usd: str | None = None,
+        user_info: dict | None = None,
+        happened_at: datetime | None = None,
+    ) -> dict:
+        """POST /conversionEvents — send a single conversion event.
+
+        Hashes email (SHA256) before sending.
+        event_id enables deduplication with Insight Tag pixel.
+        happened_at defaults to now() if not provided.
+        """
+        ts = happened_at or datetime.now(UTC)
+        ts_ms = int(ts.timestamp() * 1000)
+        hashed_email = hash_email_for_linkedin(email)
+
+        body: dict[str, Any] = {
+            "conversion": conversion_urn,
+            "conversionHappenedAt": ts_ms,
+            "eventId": event_id,
+            "user": {
+                "userIds": [
+                    {
+                        "idType": "SHA256_EMAIL",
+                        "idValue": hashed_email,
+                    }
+                ],
+            },
+        }
+
+        if value_usd:
+            body["conversionValue"] = {
+                "currencyCode": "USD",
+                "amount": value_usd,
+            }
+        if user_info:
+            body["user"]["userInfo"] = user_info
+
+        return await self.post("/conversionEvents", json=body)
+
+    async def send_conversion_events_batch(
+        self,
+        conversion_urn: str,
+        events: list[dict],
+    ) -> dict:
+        """Batch send multiple conversion events.
+
+        Each event: {email, event_id, value_usd?, user_info?, happened_at?}
+        """
+        elements = []
+        for evt in events:
+            ts = evt.get("happened_at") or datetime.now(UTC)
+            ts_ms = int(ts.timestamp() * 1000)
+            hashed_email = hash_email_for_linkedin(evt["email"])
+
+            element: dict[str, Any] = {
+                "conversion": conversion_urn,
+                "conversionHappenedAt": ts_ms,
+                "eventId": evt["event_id"],
+                "user": {
+                    "userIds": [
+                        {
+                            "idType": "SHA256_EMAIL",
+                            "idValue": hashed_email,
+                        }
+                    ],
+                },
+            }
+            if evt.get("value_usd"):
+                element["conversionValue"] = {
+                    "currencyCode": "USD",
+                    "amount": evt["value_usd"],
+                }
+            if evt.get("user_info"):
+                element["user"]["userInfo"] = evt["user_info"]
+            elements.append(element)
+
+        return await self.post(
+            "/conversionEvents",
+            json={"elements": elements},
+        )
+
+    # --- Lead Gen Form methods ---
+
+    async def create_lead_gen_form(
+        self,
+        account_id: int,
+        name: str,
+        headline: str,
+        description: str,
+        privacy_policy_url: str,
+        thank_you_message: str,
+        thank_you_landing_page_url: str | None = None,
+        questions: list[dict] | None = None,
+    ) -> dict:
+        """POST /leadGenerationForms — create a lead gen form.
+
+        Standard field types (auto-filled from profile): FIRST_NAME,
+        LAST_NAME, EMAIL, PHONE_NUMBER, COMPANY_NAME, JOB_TITLE, etc.
+        Custom: fieldType='CUSTOM' with customQuestionText and answerType.
+        """
+        body: dict[str, Any] = {
+            "account": make_account_urn(account_id),
+            "name": name,
+            "headline": headline,
+            "description": description,
+            "privacyPolicyUrl": privacy_policy_url,
+            "thankYouMessage": thank_you_message,
+        }
+        if thank_you_landing_page_url:
+            body["thankYouLandingPageUrl"] = thank_you_landing_page_url
+        if questions:
+            body["questions"] = questions
+
+        return await self.post("/leadGenerationForms", json=body)
+
+    async def list_lead_gen_forms(
+        self, account_id: int
+    ) -> list[dict]:
+        """List all lead gen forms for the account."""
+        resp = await self.get(
+            "/leadGenerationForms",
+            params={
+                "q": "account",
+                "account": make_account_urn(account_id),
+            },
+        )
+        return resp.get("elements", [])
+
+    async def get_lead_gen_form(self, form_id: int) -> dict:
+        """Get form details."""
+        return await self.get(f"/leadGenerationForms/{form_id}")
+
+    async def get_lead_submissions(
+        self,
+        account_id: int,
+        form_id: int,
+        submitted_after: int | None = None,
+    ) -> list[dict]:
+        """GET /leadFormResponses — retrieve lead submissions.
+
+        Requires r_marketing_leadgen_automation scope.
+        submitted_after in epoch milliseconds for incremental polling.
+        """
+        params: dict[str, str] = {
+            "q": "owner",
+            "owner": make_account_urn(account_id),
+            "leadGenerationForm": (
+                f"urn:li:leadGenerationForm:{form_id}"
+            ),
+        }
+        if submitted_after is not None:
+            params["submittedAfter"] = str(submitted_after)
+
+        resp = await self.get("/leadFormResponses", params=params)
         return resp.get("elements", [])
