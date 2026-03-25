@@ -21,6 +21,13 @@ class Settings(BaseSettings):
     LINKEDIN_REDIRECT_URI: str = ""
     LINKEDIN_API_VERSION: str = "202603"
 
+    # Meta OAuth
+    META_APP_ID: str = ""
+    META_APP_SECRET: str = ""
+    META_REDIRECT_URI: str = ""
+    META_API_VERSION: str = "v25.0"
+    META_SYSTEM_USER_ID: str = ""
+
     # App
     APP_ENV: str = "development"
     APP_URL: str = "http://localhost:8000"
