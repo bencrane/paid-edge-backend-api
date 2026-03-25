@@ -2,7 +2,6 @@ from datetime import datetime
 
 from pydantic import BaseModel, EmailStr
 
-
 # --- Request models ---
 
 
@@ -29,6 +28,10 @@ class InviteMemberRequest(BaseModel):
 class ProviderConfigRequest(BaseModel):
     config: dict
     is_active: bool = True
+
+
+class SelectAdAccountRequest(BaseModel):
+    ad_account_id: int
 
 
 # --- Response models ---

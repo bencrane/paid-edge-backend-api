@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 
 from app.auth.models import UserProfile
 from app.dependencies import get_current_user, get_supabase, get_tenant
-from app.shared.errors import NotFoundError
+from app.shared.errors import BadRequestError, NotFoundError
 from app.tenants.models import (
     CreateOrgRequest,
     InviteMemberRequest,
@@ -10,6 +10,7 @@ from app.tenants.models import (
     Organization,
     ProviderConfig,
     ProviderConfigRequest,
+    SelectAdAccountRequest,
     UpdateOrgRequest,
 )
 from app.tenants.service import require_admin
@@ -202,3 +203,52 @@ async def remove_provider(
     supabase.table("provider_configs").delete().eq(
         "organization_id", org_id
     ).eq("provider", provider).execute()
+
+
+# --- LinkedIn ad account selection ---
+
+
+@router.put(
+    "/{org_id}/providers/linkedin_ads/account",
+    response_model=ProviderConfig,
+)
+async def select_linkedin_ad_account(
+    org_id: str,
+    body: SelectAdAccountRequest,
+    user: UserProfile = Depends(get_current_user),
+    supabase=Depends(get_supabase),
+):
+    """Set the active LinkedIn ad account for this organization."""
+    await require_admin(user.id, org_id, supabase)
+
+    res = (
+        supabase.table("provider_configs")
+        .select("*")
+        .eq("organization_id", org_id)
+        .eq("provider", "linkedin_ads")
+        .maybe_single()
+        .execute()
+    )
+    if not res.data:
+        raise NotFoundError(detail="LinkedIn not connected for this organization")
+
+    config = res.data["config"]
+
+    # Validate the account ID exists in the stored ad_accounts list
+    valid_ids = [a["id"] for a in config.get("ad_accounts", [])]
+    if body.ad_account_id not in valid_ids:
+        raise BadRequestError(
+            detail=f"Ad account {body.ad_account_id} not found in connected accounts. "
+            f"Valid IDs: {valid_ids}"
+        )
+
+    config["selected_ad_account_id"] = body.ad_account_id
+
+    updated = (
+        supabase.table("provider_configs")
+        .update({"config": config})
+        .eq("organization_id", org_id)
+        .eq("provider", "linkedin_ads")
+        .execute()
+    )
+    return ProviderConfig(**updated.data[0])
