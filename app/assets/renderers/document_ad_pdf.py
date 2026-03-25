@@ -3,7 +3,6 @@ import io
 from reportlab.lib.colors import Color, HexColor, white
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 from reportlab.lib.styles import ParagraphStyle
-from reportlab.lib.units import inch
 from reportlab.platypus import (
     BaseDocTemplate,
     Frame,
@@ -12,8 +11,7 @@ from reportlab.platypus import (
     Spacer,
 )
 
-from app.assets.models import DocumentAdInput, Slide
-
+from app.assets.models import DocumentAdInput
 
 DIMENSIONS = {
     "1:1": (1080, 1080),
