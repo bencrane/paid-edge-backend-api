@@ -1,4 +1,5 @@
-from datetime import datetime, timezone
+import logging
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, Query
 
@@ -9,9 +10,13 @@ from app.campaigns.models import (
     CampaignResponse,
     CampaignUpdate,
 )
+from app.campaigns.platforms.linkedin import LinkedInPlatformAdapter
 from app.dependencies import get_current_user, get_supabase, get_tenant
+from app.integrations.linkedin import LinkedInAdsClient
 from app.shared.errors import ConflictError, NotFoundError
 from app.tenants.models import Organization
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/campaigns", tags=["campaigns"])
 
@@ -183,14 +188,16 @@ async def launch_campaign(
     # Validate: must have at least one generated asset
     assets_res = (
         supabase.table("generated_assets")
-        .select("id", count="exact")
+        .select("*")
         .eq("campaign_id", campaign_id)
-        .limit(1)
         .execute()
     )
     if not assets_res.data:
-        raise ConflictError(detail="Campaign must have at least one generated asset before launching")
+        raise ConflictError(
+            detail="Campaign must have at least one generated asset before launching"
+        )
 
+    # Update PaidEdge status to active
     res = (
         supabase.table("campaigns")
         .update({"status": "active"})
@@ -198,6 +205,48 @@ async def launch_campaign(
         .eq("organization_id", tenant.id)
         .execute()
     )
+
+    # LinkedIn platform launch (additive — does not block PaidEdge status)
+    platforms = existing.get("platforms", [])
+    if "linkedin" in platforms:
+        try:
+            linkedin_client = LinkedInAdsClient(
+                org_id=tenant.id, supabase=supabase
+            )
+            adapter = LinkedInPlatformAdapter(
+                linkedin_client=linkedin_client,
+                supabase=supabase,
+            )
+
+            # Load audience segment if present
+            audience_segment = None
+            if existing.get("audience_segment_id"):
+                seg_res = (
+                    supabase.table("audience_segments")
+                    .select("*")
+                    .eq("id", existing["audience_segment_id"])
+                    .maybe_single()
+                    .execute()
+                )
+                audience_segment = seg_res.data
+
+            result = await adapter.launch_campaign(
+                paidedge_campaign=existing,
+                audience_segment=audience_segment,
+                assets=assets_res.data,
+            )
+
+            if result.status == "error":
+                logger.error(
+                    "LinkedIn launch errors for campaign %s: %s",
+                    campaign_id,
+                    result.errors,
+                )
+        except Exception:
+            logger.exception(
+                "LinkedIn launch failed for campaign %s", campaign_id
+            )
+
     return _parse_campaign(res.data[0])
 
 
@@ -304,5 +353,5 @@ async def delete_campaign(
         )
 
     supabase.table("campaigns").update(
-        {"archived_at": datetime.now(timezone.utc).isoformat()}
+        {"archived_at": datetime.now(UTC).isoformat()}
     ).eq("id", campaign_id).eq("organization_id", tenant.id).execute()
