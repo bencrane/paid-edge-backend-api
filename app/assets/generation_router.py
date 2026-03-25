@@ -1,12 +1,12 @@
-"""Asset generation endpoints.
+"""Asset API endpoints (BJC-55).
 
-Separate router from the rendering router — handles AI-powered content
-generation, revision, approval, and listing.
+REST layer over the generation service: generate, preview, approve,
+list assets for a campaign, get asset detail, update asset content.
 """
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from supabase import Client as SupabaseClient
 
@@ -14,9 +14,10 @@ from app.assets.service import AssetGenerationService
 from app.auth.models import UserProfile
 from app.dependencies import get_claude, get_current_user, get_supabase, get_tenant
 from app.integrations.claude_ai import ClaudeClient
+from app.shared.errors import BadRequestError
 from app.tenants.models import Organization
 
-router = APIRouter(prefix="/assets", tags=["asset-generation"])
+router = APIRouter(prefix="/assets", tags=["assets"])
 
 
 # ---------------------------------------------------------------------------
@@ -53,6 +54,14 @@ class ReviseRequest(BaseModel):
     revision_instructions: str
 
 
+class AssetUpdateRequest(BaseModel):
+    """Direct content edits — update stored content without AI re-generation."""
+
+    content_json: dict | None = None
+    content_url: str | None = None
+    status: str | None = None
+
+
 class AssetDetailResponse(BaseModel):
     id: str
     asset_type: str
@@ -62,7 +71,10 @@ class AssetDetailResponse(BaseModel):
     template_used: str | None = None
     campaign_id: str | None = None
     organization_id: str | None = None
+    slug: str | None = None
     error_message: str | None = None
+    created_at: str | None = None
+    updated_at: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -118,7 +130,25 @@ async def get_asset(
     return service.get_asset(asset_id, str(tenant.id))
 
 
-@router.patch("/{asset_id}", response_model=GeneratedAssetResponse)
+@router.patch("/{asset_id}", response_model=AssetDetailResponse)
+async def update_asset(
+    asset_id: str,
+    body: AssetUpdateRequest,
+    user: UserProfile = Depends(get_current_user),
+    tenant: Organization = Depends(get_tenant),
+    service: AssetGenerationService = Depends(_get_service),
+):
+    """Update asset content directly (edit generated content without re-generation)."""
+    return service.update_asset(
+        asset_id=asset_id,
+        org_id=str(tenant.id),
+        content_json=body.content_json,
+        content_url=body.content_url,
+        status=body.status,
+    )
+
+
+@router.post("/{asset_id}/revise", response_model=GeneratedAssetResponse)
 async def revise_asset(
     asset_id: str,
     body: ReviseRequest,
@@ -126,7 +156,7 @@ async def revise_asset(
     tenant: Organization = Depends(get_tenant),
     service: AssetGenerationService = Depends(_get_service),
 ):
-    """Revise an asset with new instructions (re-generates content)."""
+    """Revise an asset with new instructions (re-generates content via AI)."""
     return await service.revise_asset(
         asset_id=asset_id,
         revision_instructions=body.revision_instructions,
@@ -145,12 +175,22 @@ async def approve_asset(
     return service.approve_asset(asset_id, str(tenant.id))
 
 
-@router.get("/campaigns/{campaign_id}/assets", response_model=list[AssetDetailResponse])
+@router.get(
+    "/campaigns/{campaign_id}",
+    response_model=list[AssetDetailResponse],
+)
 async def list_campaign_assets(
     campaign_id: str,
+    status: str | None = Query(None, description="Filter by asset status"),
+    asset_type: str | None = Query(None, description="Filter by asset type"),
     user: UserProfile = Depends(get_current_user),
     tenant: Organization = Depends(get_tenant),
     service: AssetGenerationService = Depends(_get_service),
 ):
-    """List all assets for a campaign."""
-    return service.list_campaign_assets(campaign_id, str(tenant.id))
+    """List all assets for a campaign with optional filters."""
+    return service.list_campaign_assets(
+        campaign_id=campaign_id,
+        org_id=str(tenant.id),
+        status=status,
+        asset_type=asset_type,
+    )
