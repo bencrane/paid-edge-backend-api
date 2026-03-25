@@ -11,7 +11,9 @@ from app.campaigns.models import (
     CampaignUpdate,
 )
 from app.campaigns.platforms.linkedin import LinkedInPlatformAdapter
+from app.config import settings
 from app.dependencies import get_current_user, get_supabase, get_tenant
+from app.integrations.dubco import create_campaign_tracked_link
 from app.integrations.linkedin import LinkedInAdsClient
 from app.shared.errors import ConflictError, NotFoundError
 from app.tenants.models import Organization
@@ -100,7 +102,25 @@ async def create_campaign(
         insert_data["budget"] = float(insert_data["budget"])
 
     res = supabase.table("campaigns").insert(insert_data).execute()
-    return _parse_campaign(res.data[0])
+    campaign_row = res.data[0]
+
+    # Auto-generate dub.co tracked link (non-blocking — failures are logged)
+    if settings.DUBCO_API_KEY:
+        tracked_link = await create_campaign_tracked_link(
+            campaign_id=campaign_row["id"],
+            campaign_name=body.name,
+            landing_page_url=f"{settings.APP_URL}/lp/{campaign_row['id']}",
+            tenant_id=tenant.id,
+        )
+        if tracked_link:
+            supabase.table("campaigns").update(
+                {"tracked_link_url": tracked_link.short_link}
+            ).eq("id", campaign_row["id"]).eq(
+                "organization_id", tenant.id
+            ).execute()
+            campaign_row["tracked_link_url"] = tracked_link.short_link
+
+    return _parse_campaign(campaign_row)
 
 
 # --- 3. Get campaign detail ---
@@ -355,3 +375,37 @@ async def delete_campaign(
     supabase.table("campaigns").update(
         {"archived_at": datetime.now(UTC).isoformat()}
     ).eq("id", campaign_id).eq("organization_id", tenant.id).execute()
+
+
+# --- 10. Generate tracked link (dub.co) ---
+
+
+@router.post("/{campaign_id}/tracked-link", response_model=CampaignResponse)
+async def generate_tracked_link(
+    campaign_id: str,
+    user: UserProfile = Depends(get_current_user),
+    tenant: Organization = Depends(get_tenant),
+    supabase=Depends(get_supabase),
+):
+    """Generate (or regenerate) a dub.co tracked short link for a campaign."""
+    existing = _get_campaign_or_404(supabase, campaign_id, tenant.id)
+
+    tracked_link = await create_campaign_tracked_link(
+        campaign_id=campaign_id,
+        campaign_name=existing["name"],
+        landing_page_url=f"{settings.APP_URL}/lp/{campaign_id}",
+        tenant_id=tenant.id,
+    )
+
+    if tracked_link:
+        res = (
+            supabase.table("campaigns")
+            .update({"tracked_link_url": tracked_link.short_link})
+            .eq("id", campaign_id)
+            .eq("organization_id", tenant.id)
+            .execute()
+        )
+        return _parse_campaign(res.data[0])
+
+    # dub.co not configured or call failed — return campaign as-is
+    return _parse_campaign(existing)
