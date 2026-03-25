@@ -34,9 +34,19 @@ class Settings(BaseSettings):
     GOOGLE_ADS_REDIRECT_URI: str = ""
     GOOGLE_ADS_DEVELOPER_TOKEN: str = ""  # App-level, NOT per-tenant
     GOOGLE_ADS_MCC_ID: str = ""  # App-level MCC customer ID (no hyphens)
+    # data-engine-x (injected by Doppler via `doppler run`)
+    DATA_ENGINE_X_BASE_URL: str = ""
+    DATA_ENGINE_X_API_TOKEN: str = ""
 
     # Anthropic (injected by Doppler via `doppler run`)
     ANTHROPIC_API_KEY: str = ""
+
+    # RudderStack (server-side identify/track for landing page forms)
+    RUDDERSTACK_DATA_PLANE_URL: str = ""
+    RUDDERSTACK_WRITE_KEY: str = ""
+
+    # dub.co (tracked short links)
+    DUBCO_API_KEY: str = ""
 
     # App
     APP_ENV: str = "development"
