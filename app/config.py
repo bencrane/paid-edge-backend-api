@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     META_API_VERSION: str = "v25.0"
     META_SYSTEM_USER_ID: str = ""
 
+    # Anthropic (injected by Doppler via `doppler run`)
+    ANTHROPIC_API_KEY: str = ""
+
     # App
     APP_ENV: str = "development"
     APP_URL: str = "http://localhost:8000"
