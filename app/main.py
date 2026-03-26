@@ -1,8 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.analytics.router import router as analytics_router
 from app.assets.generation_router import router as generation_router
 from app.assets.router import router as assets_router
+from app.attribution.router import router as attribution_router
 from app.audiences.router import router as audiences_router
 from app.auth.linkedin import router as linkedin_auth_router
 from app.auth.meta import router as meta_auth_router
@@ -41,6 +43,8 @@ app.include_router(assets_router)
 app.include_router(audiences_router)
 app.include_router(generation_router)
 app.include_router(campaigns_router)
+app.include_router(analytics_router)
+app.include_router(attribution_router)
 app.include_router(landing_pages_router)
 app.include_router(tenants_router)
 
