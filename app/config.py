@@ -36,6 +36,10 @@ class Settings(BaseSettings):
     HUBSPOT_ENGINE_X_BASE_URL: str = ""
     HUBSPOT_ENGINE_X_API_TOKEN: str = ""
 
+    # sfdc-engine-x (injected by Doppler via `doppler run`)
+    SFDC_ENGINE_X_BASE_URL: str = ""
+    SFDC_ENGINE_X_API_TOKEN: str = ""
+
     # Anthropic (injected by Doppler via `doppler run`)
     ANTHROPIC_API_KEY: str = ""
 
