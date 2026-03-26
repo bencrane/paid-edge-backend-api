@@ -2,10 +2,7 @@
 
 from datetime import date
 from decimal import Decimal
-from unittest.mock import MagicMock, patch
-
-import pytest
-from fastapi.testclient import TestClient
+from unittest.mock import MagicMock
 
 from app.attribution.models import (
     CostPerClosedWonResponse,
@@ -78,10 +75,10 @@ class TestGetFunnel:
         mock_ch = MagicMock()
         mock_ch.query.return_value = _mock_named_results([])
 
-        from app.attribution.router import get_funnel
-
         # Call the endpoint function directly with mocks
         import asyncio
+
+        from app.attribution.router import get_funnel
 
         tenant = MagicMock()
         tenant.id = TENANT_ID
@@ -126,9 +123,9 @@ class TestGetFunnel:
         mock_ch = MagicMock()
         mock_ch.query.return_value = _mock_named_results(rows)
 
-        from app.attribution.router import get_funnel
-
         import asyncio
+
+        from app.attribution.router import get_funnel
 
         tenant = MagicMock()
         tenant.id = TENANT_ID
@@ -152,9 +149,9 @@ class TestGetFunnel:
         mock_ch = MagicMock()
         mock_ch.query.return_value = _mock_named_results([])
 
-        from app.attribution.router import get_funnel
-
         import asyncio
+
+        from app.attribution.router import get_funnel
 
         tenant = MagicMock()
         tenant.id = TENANT_ID
@@ -194,9 +191,9 @@ class TestGetCostPerOpportunity:
         mock_ch = MagicMock()
         mock_ch.query.return_value = _mock_named_results(rows)
 
-        from app.attribution.router import get_cost_per_opportunity
-
         import asyncio
+
+        from app.attribution.router import get_cost_per_opportunity
 
         tenant = MagicMock()
         tenant.id = TENANT_ID
@@ -234,9 +231,9 @@ class TestGetCostPerClosedWon:
         mock_ch = MagicMock()
         mock_ch.query.return_value = _mock_named_results(rows)
 
-        from app.attribution.router import get_cost_per_closed_won
-
         import asyncio
+
+        from app.attribution.router import get_cost_per_closed_won
 
         tenant = MagicMock()
         tenant.id = TENANT_ID
@@ -280,9 +277,9 @@ class TestGetPipelineInfluenced:
         mock_ch = MagicMock()
         mock_ch.query.return_value = _mock_named_results(rows)
 
-        from app.attribution.router import get_pipeline_influenced
-
         import asyncio
+
+        from app.attribution.router import get_pipeline_influenced
 
         tenant = MagicMock()
         tenant.id = TENANT_ID
@@ -328,9 +325,9 @@ class TestGetLookalikeProfile:
         mock_ch = MagicMock()
         mock_ch.query.return_value = _mock_named_results(rows)
 
-        from app.attribution.router import get_lookalike_profile
-
         import asyncio
+
+        from app.attribution.router import get_lookalike_profile
 
         tenant = MagicMock()
         tenant.id = TENANT_ID
@@ -353,9 +350,9 @@ class TestGetLookalikeProfile:
         mock_ch = MagicMock()
         mock_ch.query.return_value = _mock_named_results([])
 
-        from app.attribution.router import get_lookalike_profile
-
         import asyncio
+
+        from app.attribution.router import get_lookalike_profile
 
         tenant = MagicMock()
         tenant.id = TENANT_ID

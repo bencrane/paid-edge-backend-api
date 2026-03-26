@@ -21,7 +21,7 @@ from app.analytics.models import (
     TimeSeriesPoint,
     TimeSeriesResponse,
 )
-from app.dependencies import get_clickhouse, get_current_user, get_tenant
+from app.dependencies import get_clickhouse, get_tenant
 from app.tenants.models import Organization
 
 logger = logging.getLogger(__name__)

@@ -1,10 +1,8 @@
 """Tests for Analytics API endpoints (PEX-68)."""
 
-from datetime import date, timedelta
+from datetime import date
 from decimal import Decimal
 from unittest.mock import MagicMock
-
-import pytest
 
 from app.analytics.models import (
     CampaignPerformanceResponse,
@@ -130,9 +128,9 @@ class TestGetOverview:
             _mock_named_results([prev_row]),
         ]
 
-        from app.analytics.router import get_overview
-
         import asyncio
+
+        from app.analytics.router import get_overview
 
         resp = asyncio.get_event_loop().run_until_complete(
             get_overview(
@@ -156,9 +154,9 @@ class TestGetOverview:
             _mock_named_results([]),
         ]
 
-        from app.analytics.router import get_overview
-
         import asyncio
+
+        from app.analytics.router import get_overview
 
         resp = asyncio.get_event_loop().run_until_complete(
             get_overview(
@@ -188,9 +186,9 @@ class TestGetOverview:
             }]),
         ]
 
-        from app.analytics.router import get_overview
-
         import asyncio
+
+        from app.analytics.router import get_overview
 
         asyncio.get_event_loop().run_until_complete(
             get_overview(
@@ -229,9 +227,9 @@ class TestGetCampaignPerformance:
         mock_ch = MagicMock()
         mock_ch.query.return_value = _mock_named_results(rows)
 
-        from app.analytics.router import get_campaign_performance
-
         import asyncio
+
+        from app.analytics.router import get_campaign_performance
 
         resp = asyncio.get_event_loop().run_until_complete(
             get_campaign_performance(
@@ -271,9 +269,9 @@ class TestGetCampaignPerformance:
         mock_ch = MagicMock()
         mock_ch.query.return_value = _mock_named_results(rows)
 
-        from app.analytics.router import get_campaign_performance
-
         import asyncio
+
+        from app.analytics.router import get_campaign_performance
 
         resp = asyncio.get_event_loop().run_until_complete(
             get_campaign_performance(
@@ -295,9 +293,9 @@ class TestGetCampaignPerformance:
         mock_ch = MagicMock()
         mock_ch.query.return_value = _mock_named_results([])
 
-        from app.analytics.router import get_campaign_performance
-
         import asyncio
+
+        from app.analytics.router import get_campaign_performance
 
         asyncio.get_event_loop().run_until_complete(
             get_campaign_performance(
@@ -355,9 +353,9 @@ class TestGetPlatformComparison:
         mock_ch = MagicMock()
         mock_ch.query.return_value = _mock_named_results(rows)
 
-        from app.analytics.router import get_platform_comparison
-
         import asyncio
+
+        from app.analytics.router import get_platform_comparison
 
         resp = asyncio.get_event_loop().run_until_complete(
             get_platform_comparison(
@@ -406,9 +404,9 @@ class TestGetTimeseries:
         mock_ch = MagicMock()
         mock_ch.query.return_value = _mock_named_results(rows)
 
-        from app.analytics.router import get_timeseries
-
         import asyncio
+
+        from app.analytics.router import get_timeseries
 
         resp = asyncio.get_event_loop().run_until_complete(
             get_timeseries(
@@ -430,9 +428,9 @@ class TestGetTimeseries:
         mock_ch = MagicMock()
         mock_ch.query.return_value = _mock_named_results([])
 
-        from app.analytics.router import get_timeseries
-
         import asyncio
+
+        from app.analytics.router import get_timeseries
 
         for granularity, expected_fn in GRANULARITY_FUNCTIONS.items():
             mock_ch.reset_mock()
@@ -454,9 +452,9 @@ class TestGetTimeseries:
         mock_ch = MagicMock()
         mock_ch.query.return_value = _mock_named_results([])
 
-        from app.analytics.router import get_timeseries
-
         import asyncio
+
+        from app.analytics.router import get_timeseries
 
         asyncio.get_event_loop().run_until_complete(
             get_timeseries(
