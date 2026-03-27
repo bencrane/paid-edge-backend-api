@@ -53,6 +53,9 @@ class Settings(BaseSettings):
     # Rate limiting
     RATE_LIMIT_RPM: int = 60
 
+    # Webhooks
+    WEBHOOK_SIGNING_SECRET: str = ""
+
     # App
     APP_ENV: str = "development"
     APP_URL: str = "http://localhost:8000"
