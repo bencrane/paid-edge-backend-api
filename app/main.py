@@ -14,7 +14,9 @@ from app.auth.router import router as auth_router
 from app.campaigns.router import router as campaigns_router
 from app.config import settings
 from app.landing_pages.router import router as landing_pages_router
+from app.shared.error_handlers import register_error_handlers
 from app.shared.models import HealthResponse
+from app.shared.request_id import RequestIDMiddleware
 from app.tenants.router import router as tenants_router
 from app.usage.router import router as usage_router
 
@@ -25,8 +27,12 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
+# --- Error handlers ---
+
+register_error_handlers(app)
+
 # --- Middleware (order matters: last added = first executed) ---
-# Execution order on request: CORS → JWT → RateLimit → route handler
+# Execution order on request: RequestID → CORS → JWT → RateLimit → route handler
 
 app.add_middleware(RateLimitMiddleware, rpm=settings.RATE_LIMIT_RPM)
 app.add_middleware(JWTAuthMiddleware)
@@ -37,6 +43,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(RequestIDMiddleware)
 
 # --- Routers ---
 
