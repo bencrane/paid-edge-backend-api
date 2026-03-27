@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date
 
 from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from supabase import Client as SupabaseClient
 
 from app.auth.models import UserProfile
@@ -21,6 +21,8 @@ router = APIRouter(prefix="/usage", tags=["usage"])
 
 
 class UsageEventOut(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
     id: str
     asset_type: str
     status: str

@@ -56,8 +56,12 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             return JSONResponse(
                 status_code=429,
                 content={
-                    "detail": "Rate limit exceeded",
-                    "retry_after": retry_after,
+                    "error": {
+                        "type": "rate_limit_exceeded",
+                        "message": f"Rate limit exceeded. Try again in {retry_after} seconds.",
+                        "details": None,
+                        "request_id": getattr(request.state, "request_id", None),
+                    }
                 },
                 headers={
                     "Retry-After": str(retry_after),

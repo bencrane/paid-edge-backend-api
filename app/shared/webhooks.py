@@ -121,6 +121,24 @@ class WebhookDelivery:
                             total_duration_ms=duration_ms,
                         )
 
+                    # 4xx = client error, retrying won't help
+                    if 400 <= response.status_code < 500:
+                        duration_ms = int((time.monotonic() - t0) * 1000)
+                        logger.warning(
+                            "Webhook client error (no retry): id=%s status=%d",
+                            delivery_id,
+                            response.status_code,
+                        )
+                        return WebhookDeliveryResult(
+                            delivery_id=delivery_id,
+                            url=url,
+                            event_type=event_type,
+                            status="failed",
+                            attempts=attempts,
+                            final_status_code=last_status_code,
+                            total_duration_ms=duration_ms,
+                        )
+
                     logger.warning(
                         "Webhook attempt %d failed: id=%s status=%d",
                         attempts,

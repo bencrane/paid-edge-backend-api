@@ -167,8 +167,9 @@ class TestRateLimitMiddleware:
         assert remaining2 == remaining1 - 1
 
     async def test_429_response_body_structure(self, middleware: RateLimitMiddleware):
-        """429 response body includes detail and retry_after fields."""
+        """429 response body uses structured error format."""
         request = _make_request()
+        request.state.request_id = "req_test123"
 
         for _ in range(5):
             await middleware.dispatch(request, _ok_response)
@@ -179,6 +180,7 @@ class TestRateLimitMiddleware:
         import json
 
         body = json.loads(resp.body.decode())
-        assert "detail" in body
-        assert "retry_after" in body
-        assert isinstance(body["retry_after"], int)
+        assert "error" in body
+        assert body["error"]["type"] == "rate_limit_exceeded"
+        assert "Rate limit exceeded" in body["error"]["message"]
+        assert body["error"]["request_id"] == "req_test123"

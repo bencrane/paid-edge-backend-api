@@ -118,9 +118,11 @@ async def health_ready():
         supabase.table("organizations").select("id").limit(1).execute()
         latency = int((time.monotonic() - t0) * 1000)
         checks["database"] = CheckResult(status="ok", latency_ms=latency)
-    except Exception as exc:
+    except Exception:
         latency = int((time.monotonic() - t0) * 1000)
-        checks["database"] = CheckResult(status="error", latency_ms=latency, error=str(exc))
+        checks["database"] = CheckResult(
+            status="error", latency_ms=latency, error="database unreachable"
+        )
         all_ok = False
 
     # Check Claude API reachability
@@ -131,9 +133,11 @@ async def health_ready():
             # Even 401 means the API is reachable
             latency = int((time.monotonic() - t0) * 1000)
             checks["claude_api"] = CheckResult(status="ok", latency_ms=latency)
-    except Exception as exc:
+    except Exception:
         latency = int((time.monotonic() - t0) * 1000)
-        checks["claude_api"] = CheckResult(status="error", latency_ms=latency, error=str(exc))
+        checks["claude_api"] = CheckResult(
+            status="error", latency_ms=latency, error="claude api unreachable"
+        )
         all_ok = False
 
     status_value = "ok" if all_ok else "degraded"
