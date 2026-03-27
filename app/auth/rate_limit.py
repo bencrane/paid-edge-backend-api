@@ -23,6 +23,18 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self.rpm = rpm
         self._window = 60.0  # seconds
         self._counters: dict[str, list[float]] = {}
+        self._last_cleanup = 0.0
+        self._cleanup_interval = 300.0  # purge stale entries every 5 minutes
+
+    def _cleanup_stale_entries(self, now: float) -> None:
+        """Remove user entries with no recent timestamps to prevent unbounded growth."""
+        cutoff = now - self._window
+        stale_keys = [
+            uid for uid, ts in self._counters.items()
+            if not ts or ts[-1] <= cutoff
+        ]
+        for key in stale_keys:
+            del self._counters[key]
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         path = request.url.path
@@ -40,6 +52,12 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         now = time.monotonic()
+
+        # Periodic cleanup of stale entries to prevent memory growth
+        if now - self._last_cleanup > self._cleanup_interval:
+            self._cleanup_stale_entries(now)
+            self._last_cleanup = now
+
         timestamps = self._counters.setdefault(user_id, [])
 
         # Prune timestamps outside the sliding window

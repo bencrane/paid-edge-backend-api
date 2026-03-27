@@ -12,8 +12,9 @@ from app.tenants.models import (
     ProviderConfigRequest,
     SelectAdAccountRequest,
     UpdateOrgRequest,
+    mask_provider_config,
 )
-from app.tenants.service import require_admin
+from app.tenants.service import require_admin, require_membership
 
 router = APIRouter(prefix="/orgs", tags=["organizations"])
 
@@ -120,7 +121,10 @@ async def invite_member(
             None,
         )
         if not target_user:
-            raise NotFoundError(detail=f"No user found with email {body.email}")
+            raise NotFoundError(
+                detail="Unable to invite user. "
+                "They may need to create an account first."
+            )
         target_user_id = target_user.id
     else:
         target_user_id = profile_res.data["id"]
@@ -156,13 +160,19 @@ async def list_providers(
     user: UserProfile = Depends(get_current_user),
     supabase=Depends(get_supabase),
 ):
+    await require_membership(user.id, org_id, supabase)
+
     res = (
         supabase.table("provider_configs")
         .select("*")
         .eq("organization_id", org_id)
         .execute()
     )
-    return [ProviderConfig(**p) for p in res.data]
+    # Mask secret values (tokens, keys) in the config dict
+    return [
+        ProviderConfig(**{**p, "config": mask_provider_config(p["config"])})
+        for p in res.data
+    ]
 
 
 @router.put("/{org_id}/providers/{provider}", response_model=ProviderConfig)

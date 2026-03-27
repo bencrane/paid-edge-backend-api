@@ -24,7 +24,7 @@ router = APIRouter(prefix="/render", tags=["assets"])
 _TEMPLATES_DIR = Path(__file__).parent / "templates"
 _jinja_env = Environment(
     loader=FileSystemLoader(str(_TEMPLATES_DIR)),
-    autoescape=False,
+    autoescape=True,
 )
 
 
