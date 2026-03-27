@@ -33,10 +33,23 @@ configure_logging()
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
-    title="PaidEdge API",
+    title="Creative Engine X API",
     version="0.1.0",
+    description="AI-powered creative asset generation platform.",
     docs_url="/docs",
     redoc_url="/redoc",
+    openapi_tags=[
+        {"name": "auth", "description": "Authentication and user management"},
+        {"name": "assets", "description": "Creative asset generation, rendering, and management"},
+        {"name": "campaigns", "description": "Campaign management"},
+        {"name": "audiences", "description": "Audience segments and platform sync"},
+        {"name": "analytics", "description": "Performance analytics and reporting"},
+        {"name": "attribution", "description": "Marketing attribution and funnel analysis"},
+        {"name": "landing_pages", "description": "Landing page hosting and form submission"},
+        {"name": "organizations", "description": "Organization and provider management"},
+        {"name": "usage", "description": "API usage tracking and reporting"},
+        {"name": "health", "description": "System health and readiness checks"},
+    ],
 )
 
 # --- Error handlers ---
@@ -76,20 +89,25 @@ app.include_router(usage_router)
 # --- Health checks ---
 
 
-@app.get("/health", response_model=HealthResponse)
+@app.get("/health", response_model=HealthResponse, tags=["health"], summary="Basic health check")
 async def health():
+    """Returns OK if the API process is running."""
     return HealthResponse()
 
 
-@app.get("/health/live", response_model=HealthResponse)
+@app.get("/health/live", response_model=HealthResponse, tags=["health"], summary="Liveness probe")
 async def health_live():
     """Liveness probe — always returns 200 if the process is running."""
     return HealthResponse()
 
 
-@app.get("/health/ready")
+@app.get("/health/ready", tags=["health"], summary="Readiness probe")
 async def health_ready():
-    """Readiness probe — checks database and Claude API connectivity."""
+    """Readiness probe — checks database and Claude API connectivity.
+
+    Returns 200 with check details if all dependencies are healthy,
+    or 503 with degraded status if any check fails.
+    """
     checks: dict[str, CheckResult] = {}
     all_ok = True
 
