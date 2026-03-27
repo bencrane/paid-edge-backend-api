@@ -10,6 +10,7 @@ Landing pages are customer-facing: no JWT required, CORS configured for public a
 from __future__ import annotations
 
 import logging
+import time
 from datetime import UTC, datetime
 from typing import Any
 
@@ -25,6 +26,11 @@ from app.shared.errors import NotFoundError
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/lp", tags=["landing_pages"])
+
+# --- Simple per-IP rate limiting for public form submissions ---
+_FORM_SUBMIT_RPM = 10  # max form submissions per IP per minute
+_form_counters: dict[str, list[float]] = {}
+_form_cleanup_at = 0.0
 
 
 # ---------------------------------------------------------------------------
@@ -141,11 +147,12 @@ async def serve_landing_page(slug: str, request: Request):
     input_data = asset.get("input_data")
     template_used = asset.get("template_used")
     if input_data and template_used:
-        from jinja2 import Environment, FileSystemLoader
         from pathlib import Path
 
+        from jinja2 import Environment, FileSystemLoader
+
         templates_dir = Path(__file__).parent.parent / "assets" / "templates"
-        env = Environment(loader=FileSystemLoader(str(templates_dir)), autoescape=False)
+        env = Environment(loader=FileSystemLoader(str(templates_dir)), autoescape=True)
         template = env.get_template(f"{template_used}.html")
         html = template.render(slug=slug, **input_data)
         return HTMLResponse(content=html, status_code=200)
@@ -168,6 +175,33 @@ async def submit_landing_page_form(slug: str, request: Request):
     - Fires RudderStack identify() to merge anonymous → known identity
     - Fires RudderStack track() for form_submitted event
     """
+    # Per-IP rate limiting for public form submissions
+    global _form_cleanup_at
+    client_ip = request.client.host if request.client else "unknown"
+    now = time.monotonic()
+
+    # Periodic cleanup
+    if now - _form_cleanup_at > 300:
+        cutoff = now - 60
+        stale = [ip for ip, ts in _form_counters.items() if not ts or ts[-1] <= cutoff]
+        for ip in stale:
+            del _form_counters[ip]
+        _form_cleanup_at = now
+
+    timestamps = _form_counters.setdefault(client_ip, [])
+    timestamps[:] = [t for t in timestamps if t > now - 60]
+    if len(timestamps) >= _FORM_SUBMIT_RPM:
+        return JSONResponse(
+            status_code=429,
+            content={
+                "error": {
+                    "type": "rate_limit_exceeded",
+                    "message": "Too many form submissions. Please try again later.",
+                }
+            },
+        )
+    timestamps.append(now)
+
     asset = _get_asset_by_slug(slug)
     body = await request.json()
 

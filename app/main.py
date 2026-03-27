@@ -33,9 +33,9 @@ configure_logging()
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
-    title="Creative Engine X API",
-    version="0.1.0",
-    description="AI-powered creative asset generation platform.",
+    title="PaidEdge API",
+    version="0.7.0.0",
+    description="Multi-tenant B2B paid advertising platform API.",
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_tags=[

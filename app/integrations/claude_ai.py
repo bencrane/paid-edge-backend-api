@@ -5,11 +5,12 @@ BJC-166: Model selection, structured output, retries, token management.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import re
 import time
-from typing import Any, TypeVar
+from typing import TypeVar
 
 import anthropic
 from pydantic import BaseModel
@@ -107,7 +108,7 @@ class ClaudeClient:
 
     def __init__(self, api_key: str | None = None):
         key = api_key or settings.ANTHROPIC_API_KEY
-        self._client = anthropic.Anthropic(api_key=key)
+        self._client = anthropic.AsyncAnthropic(api_key=key)
 
     # --- Public API -------------------------------------------------------
 
@@ -203,18 +204,14 @@ class ClaudeClient:
         max_tokens: int,
         asset_type: str,
     ) -> str:
-        """Call the Anthropic API with retry logic and token tracking.
-
-        Note: The Anthropic SDK is synchronous. We wrap in async for consistency
-        with the rest of the FastAPI async codebase.
-        """
+        """Call the Anthropic API with retry logic and token tracking."""
         timeout = _TIMEOUTS.get(model, 60.0)
         last_error: Exception | None = None
 
         for attempt in range(_MAX_RETRIES):
             try:
                 start = time.monotonic()
-                response = self._client.messages.create(
+                response = await self._client.messages.create(
                     model=model,
                     max_tokens=max_tokens,
                     temperature=temperature,
@@ -253,7 +250,7 @@ class ClaudeClient:
                     _MAX_RETRIES,
                     delay,
                 )
-                time.sleep(delay)
+                await asyncio.sleep(delay)
 
             except anthropic.InternalServerError as exc:
                 last_error = exc
@@ -265,7 +262,7 @@ class ClaudeClient:
                     exc,
                     delay,
                 )
-                time.sleep(delay)
+                await asyncio.sleep(delay)
 
             except anthropic.APIStatusError as exc:
                 # Only retry on retryable status codes
@@ -279,7 +276,7 @@ class ClaudeClient:
                         _MAX_RETRIES,
                         delay,
                     )
-                    time.sleep(delay)
+                    await asyncio.sleep(delay)
                 else:
                     raise
 
@@ -293,7 +290,7 @@ class ClaudeClient:
                     asset_type,
                 )
                 if attempt < _MAX_RETRIES - 1:
-                    time.sleep(_RETRY_BASE_DELAY)
+                    await asyncio.sleep(_RETRY_BASE_DELAY)
 
         raise RuntimeError(
             f"Claude API call failed after {_MAX_RETRIES} attempts: {last_error}"

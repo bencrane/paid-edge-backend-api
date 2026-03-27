@@ -64,3 +64,24 @@ class ProviderConfig(BaseModel):
     is_active: bool
     created_at: datetime
     updated_at: datetime | None = None
+
+
+# Keys in provider config that contain secrets and must be masked in API responses
+_SECRET_CONFIG_KEYS = {
+    "access_token",
+    "refresh_token",
+    "client_secret",
+    "api_key",
+    "app_secret",
+}
+
+
+def mask_provider_config(config: dict) -> dict:
+    """Return a copy of the provider config dict with secret values masked."""
+    masked = {}
+    for key, value in config.items():
+        if key in _SECRET_CONFIG_KEYS and isinstance(value, str) and len(value) > 8:
+            masked[key] = value[:4] + "****" + value[-4:]
+        else:
+            masked[key] = value
+    return masked

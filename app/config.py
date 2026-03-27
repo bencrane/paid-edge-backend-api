@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     SUPABASE_JWT_SECRET: str
 
     # ClickHouse
-    CLICKHOUSE_HOST: str = "gf9xtjjqyl.us-east-1.aws.clickhouse.cloud"
+    CLICKHOUSE_HOST: str = ""
     CLICKHOUSE_PORT: int = 8443
     CLICKHOUSE_USER: str = "default"
     CLICKHOUSE_PASSWORD: str = ""

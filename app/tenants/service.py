@@ -51,6 +51,20 @@ async def resolve_tenant(
     return Organization(**membership.data["organizations"])
 
 
+async def require_membership(user_id: str, org_id: str, supabase: Client) -> None:
+    """Raise ForbiddenError if user is not a member of the organization."""
+    membership = (
+        supabase.table("memberships")
+        .select("id")
+        .eq("user_id", user_id)
+        .eq("organization_id", org_id)
+        .maybe_single()
+        .execute()
+    )
+    if not membership.data:
+        raise ForbiddenError(detail="Not a member of this organization")
+
+
 async def require_admin(user_id: str, org_id: str, supabase: Client) -> None:
     """Raise ForbiddenError if user is not an admin of the organization."""
     membership = (
