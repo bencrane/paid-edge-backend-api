@@ -106,6 +106,7 @@ async def generate_assets(
         org_id=str(tenant.id),
         campaign_id=body.campaign_id,
         asset_types=body.asset_types,
+        user_id=str(user.id),
         platforms=body.platforms,
         angle=body.angle,
         tone=body.tone,

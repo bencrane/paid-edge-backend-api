@@ -6,7 +6,7 @@ from starlette.responses import JSONResponse, Response
 from app.config import settings
 
 # Paths that don't require authentication
-PUBLIC_PATHS = {"/health", "/docs", "/openapi.json", "/redoc"}
+PUBLIC_PATHS = {"/health", "/health/live", "/health/ready", "/docs", "/openapi.json", "/redoc"}
 PUBLIC_PREFIXES = (
     "/auth/signup",
     "/auth/login",

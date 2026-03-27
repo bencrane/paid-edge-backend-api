@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 import uuid
 from typing import Any
 
@@ -28,6 +29,7 @@ from app.assets.renderers.lead_magnet_pdf import render_lead_magnet_pdf
 from app.assets.storage import upload_asset
 from app.integrations.claude_ai import ClaudeClient
 from app.shared.errors import BadRequestError, NotFoundError
+from app.shared.usage import UsageEvent, record_usage_event
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +59,7 @@ class AssetGenerationService:
         campaign_id: str,
         asset_types: list[str],
         *,
+        user_id: str | None = None,
         platforms: list[str] | None = None,
         angle: str | None = None,
         tone: str | None = None,
@@ -96,6 +99,7 @@ class AssetGenerationService:
                     org_id=org_id,
                     campaign_id=campaign_id,
                     asset_type=at,
+                    user_id=user_id,
                     platforms=platforms,
                     cta=cta,
                     lead_magnet_format=lead_magnet_format,
@@ -142,10 +146,13 @@ class AssetGenerationService:
         org_id: str,
         campaign_id: str,
         asset_type: str,
+        *,
+        user_id: str | None = None,
         **kwargs: Any,
     ) -> dict:
         """Generate, render (if needed), persist, and return a single asset."""
         asset_id = str(uuid.uuid4())
+        t0 = time.monotonic()
 
         # Create row with status='generating'
         self.supabase.table("generated_assets").insert({
@@ -197,6 +204,20 @@ class AssetGenerationService:
             if content_json is not None:
                 content_preview = _build_preview(content_json)
 
+            # Record usage event (fire-and-forget)
+            if user_id:
+                duration_ms = int((time.monotonic() - t0) * 1000)
+                record_usage_event(
+                    UsageEvent(
+                        org_id=org_id,
+                        user_id=user_id,
+                        asset_type=asset_type,
+                        status="success",
+                        duration_ms=duration_ms,
+                    ),
+                    self.supabase,
+                )
+
             return {
                 "id": asset_id,
                 "asset_type": asset_type,
@@ -213,6 +234,21 @@ class AssetGenerationService:
             self.supabase.table("generated_assets").update(
                 {"status": "failed", "error_message": str(exc)}
             ).eq("id", asset_id).execute()
+
+            # Record failed usage event
+            if user_id:
+                duration_ms = int((time.monotonic() - t0) * 1000)
+                record_usage_event(
+                    UsageEvent(
+                        org_id=org_id,
+                        user_id=user_id,
+                        asset_type=asset_type,
+                        status="failed",
+                        duration_ms=duration_ms,
+                    ),
+                    self.supabase,
+                )
+
             raise
 
     # ------------------------------------------------------------------
