@@ -9,6 +9,7 @@ from app.audiences.router import router as audiences_router
 from app.auth.linkedin import router as linkedin_auth_router
 from app.auth.meta import router as meta_auth_router
 from app.auth.middleware import JWTAuthMiddleware
+from app.auth.rate_limit import RateLimitMiddleware
 from app.auth.router import router as auth_router
 from app.campaigns.router import router as campaigns_router
 from app.config import settings
@@ -24,7 +25,9 @@ app = FastAPI(
 )
 
 # --- Middleware (order matters: last added = first executed) ---
+# Execution order on request: CORS → JWT → RateLimit → route handler
 
+app.add_middleware(RateLimitMiddleware, rpm=settings.RATE_LIMIT_RPM)
 app.add_middleware(JWTAuthMiddleware)
 app.add_middleware(
     CORSMiddleware,
