@@ -15,3 +15,14 @@ class BaseSchema(BaseModel):
 class HealthResponse(BaseModel):
     status: str = "ok"
     version: str = "0.1.0"
+
+
+class CheckResult(BaseModel):
+    status: str  # "ok" | "error"
+    latency_ms: int
+    error: str | None = None
+
+
+class ReadinessResponse(BaseModel):
+    status: str  # "ok" | "degraded"
+    checks: dict[str, CheckResult]
