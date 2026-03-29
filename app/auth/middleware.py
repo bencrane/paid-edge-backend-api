@@ -1,12 +1,22 @@
 import jwt
 from fastapi import Request
+from jwt import PyJWKClient
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.responses import JSONResponse, Response
 
 from app.config import settings
 
+# Better Auth JWKS endpoint (EdDSA)
+_jwks_client = PyJWKClient(
+    "https://api.authengine.dev/api/auth/jwks",
+    cache_jwk_set=True,
+    lifespan=300,
+)
+
 # Paths that don't require authentication
-PUBLIC_PATHS = {"/health", "/health/live", "/health/ready", "/docs", "/openapi.json", "/redoc"}
+PUBLIC_PATHS = frozenset(
+    ["/health", "/health/live", "/health/ready", "/docs", "/openapi.json", "/redoc"]
+)
 PUBLIC_PREFIXES = (
     "/auth/signup",
     "/auth/login",
@@ -18,7 +28,12 @@ PUBLIC_PREFIXES = (
 
 
 class JWTAuthMiddleware(BaseHTTPMiddleware):
-    """Validate JWT from Authorization header and inject user_id into request state."""
+    """Validate JWT from Authorization header and inject user context into request state.
+
+    Supports dual auth during migration:
+    1. Better Auth (EdDSA via JWKS) — primary
+    2. Supabase Auth (HS256) — fallback during transition, remove after user migration
+    """
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         path = request.url.path
@@ -39,18 +54,51 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
             )
 
         token = auth_header.removeprefix("Bearer ")
+
+        # Try Better Auth (EdDSA) first
+        payload = self._try_better_auth(token)
+
+        # Fall back to Supabase (HS256) during transition
+        if payload is None:
+            payload = self._try_supabase(token)
+
+        if payload is None:
+            return JSONResponse(status_code=401, content={"detail": "Invalid token"})
+
+        # Set on request.state for downstream use
+        request.state.user_id = payload["sub"]
+        request.state.org_id = payload.get("org_id")
+        request.state.role = payload.get("role", "member")
+        request.state.token_type = payload.get("type", "session")
+        request.state.jwt_payload = payload
+
+        return await call_next(request)
+
+    @staticmethod
+    def _try_better_auth(token: str) -> dict | None:
+        """Decode a Better Auth EdDSA JWT via JWKS."""
         try:
-            payload = jwt.decode(
+            signing_key = _jwks_client.get_signing_key_from_jwt(token)
+            return jwt.decode(
+                token,
+                signing_key,
+                algorithms=["EdDSA"],
+                issuer="https://api.authengine.dev",
+                audience="https://api.authengine.dev",
+                options={"require": ["exp", "sub", "org_id", "role", "type"]},
+            )
+        except jwt.PyJWTError:
+            return None
+
+    @staticmethod
+    def _try_supabase(token: str) -> dict | None:
+        """Decode a Supabase HS256 JWT (transition fallback — remove after user migration)."""
+        try:
+            return jwt.decode(
                 token,
                 settings.SUPABASE_JWT_SECRET,
                 algorithms=["HS256"],
                 audience="authenticated",
             )
-            request.state.user_id = payload["sub"]
-            request.state.jwt_payload = payload
-        except jwt.ExpiredSignatureError:
-            return JSONResponse(status_code=401, content={"detail": "Token has expired"})
-        except jwt.InvalidTokenError:
-            return JSONResponse(status_code=401, content={"detail": "Invalid token"})
-
-        return await call_next(request)
+        except jwt.PyJWTError:
+            return None
