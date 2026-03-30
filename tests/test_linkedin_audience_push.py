@@ -603,7 +603,9 @@ class TestSmallSegmentWarning:
 _FAKE_JWT_PAYLOAD = {
     "sub": "user-1",
     "email": "test@test.com",
-    "aud": "authenticated",
+    "org_id": "tenant-1",
+    "role": "member",
+    "type": "session",
 }
 
 
@@ -639,7 +641,7 @@ class TestAPIEndpoints:
         try:
             with (
                 patch(
-                    "app.auth.middleware.jwt.decode",
+                    "app.auth.middleware.JWTAuthMiddleware._try_better_auth",
                     return_value=_FAKE_JWT_PAYLOAD,
                 ),
                 patch(
@@ -703,7 +705,7 @@ class TestAPIEndpoints:
         try:
             with (
                 patch(
-                    "app.auth.middleware.jwt.decode",
+                    "app.auth.middleware.JWTAuthMiddleware._try_better_auth",
                     return_value=_FAKE_JWT_PAYLOAD,
                 ),
                 patch(

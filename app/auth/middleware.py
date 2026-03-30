@@ -4,8 +4,6 @@ from jwt import PyJWKClient
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.responses import JSONResponse, Response
 
-from app.config import settings
-
 # Better Auth JWKS endpoint (EdDSA)
 _jwks_client = PyJWKClient(
     "https://api.authengine.dev/api/auth/jwks",
@@ -30,9 +28,7 @@ PUBLIC_PREFIXES = (
 class JWTAuthMiddleware(BaseHTTPMiddleware):
     """Validate JWT from Authorization header and inject user context into request state.
 
-    Supports dual auth during migration:
-    1. Better Auth (EdDSA via JWKS) — primary
-    2. Supabase Auth (HS256) — fallback during transition, remove after user migration
+    Uses Better Auth (EdDSA via JWKS) only.
     """
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
@@ -55,12 +51,8 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
 
         token = auth_header.removeprefix("Bearer ")
 
-        # Try Better Auth (EdDSA) first
+        # Verify Better Auth (EdDSA)
         payload = self._try_better_auth(token)
-
-        # Fall back to Supabase (HS256) during transition
-        if payload is None:
-            payload = self._try_supabase(token)
 
         if payload is None:
             return JSONResponse(status_code=401, content={"detail": "Invalid token"})
@@ -86,19 +78,6 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
                 issuer="https://api.authengine.dev",
                 audience="https://api.authengine.dev",
                 options={"require": ["exp", "sub", "org_id", "role", "type"]},
-            )
-        except jwt.PyJWTError:
-            return None
-
-    @staticmethod
-    def _try_supabase(token: str) -> dict | None:
-        """Decode a Supabase HS256 JWT (transition fallback — remove after user migration)."""
-        try:
-            return jwt.decode(
-                token,
-                settings.SUPABASE_JWT_SECRET,
-                algorithms=["HS256"],
-                audience="authenticated",
             )
         except jwt.PyJWTError:
             return None

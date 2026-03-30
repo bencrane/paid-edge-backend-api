@@ -540,10 +540,8 @@ class APIClient {
 
   private async getHeaders(): Promise<Headers> {
     const session = await supabase.auth.getSession();
-    const orgId = useOrgStore.getState().activeOrgId;
     return {
       'Authorization': `Bearer ${session.data.session?.access_token}`,
-      'X-Organization-Id': orgId,
       'Content-Type': 'application/json',
     };
   }

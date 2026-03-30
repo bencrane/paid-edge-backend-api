@@ -52,8 +52,5 @@ async def get_tenant(
     user: UserProfile = Depends(get_current_user),
     supabase: SupabaseClient = Depends(get_supabase),
 ) -> Organization:
-    # org_id from JWT (Better Auth) or fall back to header (Supabase transition)
-    org_id = getattr(request.state, "org_id", None) or request.headers.get(
-        "X-Organization-Id"
-    )
+    org_id = getattr(request.state, "org_id", None)
     return await resolve_tenant(user.id, org_id, supabase)

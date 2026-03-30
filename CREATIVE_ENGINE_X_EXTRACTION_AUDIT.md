@@ -459,7 +459,7 @@ async def upload_asset(file_bytes: bytes, filename: str, content_type: str) -> s
 | `POST /render/lead-magnet` | `LeadMagnetPDFInput` | `{asset_id, content_url}` | Render ReportLab → PDF → upload → persist |
 | `POST /render/document-ad` | `DocumentAdInput` | `{asset_id, content_url}` | Render ReportLab → PDF → upload → persist |
 
-All endpoints require JWT auth and resolve tenant via `X-Organization-Id` header.
+All endpoints require JWT auth and resolve tenant from verified JWT claims (`org_id`).
 
 ---
 
@@ -817,12 +817,12 @@ assets/
 
 ### 9.1 Tenant Resolution
 
-**Header:** `X-Organization-Id` (optional)
+**Tenant source:** JWT `org_id` claim
 
 **Flow** (`app/tenants/service.py`):
-1. If `X-Organization-Id` provided → verify user membership via `memberships` table → load org
-2. If not provided → fall back to user's first organization
-3. Raises `ForbiddenError` if not a member, `NotFoundError` if no orgs
+1. Read `org_id` from verified JWT claims
+2. Verify user membership via `memberships` table → load org
+3. Raises `ForbiddenError` if not a member, `NotFoundError` if org context is missing
 
 ### 9.2 Auth Middleware
 
@@ -836,7 +836,7 @@ PUBLIC_PREFIXES = ("/auth/signup", "/auth/login", "/auth/refresh",
                    "/auth/linkedin/callback", "/auth/meta/callback", "/lp/")
 
 # JWT validation:
-payload = jwt.decode(token, settings.SUPABASE_JWT_SECRET, algorithms=["HS256"], audience="authenticated")
+# Better Auth EdDSA via JWKS (no HS256 fallback)
 request.state.user_id = payload["sub"]
 request.state.jwt_payload = payload
 ```
@@ -857,7 +857,7 @@ async def get_claude() -> ClaudeClient:
     return ClaudeClient()                     # Uses ANTHROPIC_API_KEY from settings
 
 async def get_tenant(request, user, supabase) -> Organization:
-    org_id = request.headers.get("X-Organization-Id")
+    org_id = getattr(request.state, "org_id", None)
     return await resolve_tenant(user.id, org_id, supabase)
 ```
 
@@ -898,9 +898,9 @@ class ProviderConfig(BaseModel):
 - **Services used:**
   - **Database (PostgreSQL):** All tables — generated_assets, tenant_context, landing_page_submissions, campaigns, etc.
   - **Storage:** `assets` bucket for PDFs and HTML files
-  - **Auth:** JWT secret for token validation (SUPABASE_JWT_SECRET)
+  - **Auth:** Better Auth EdDSA/JWKS token validation
 - **Auth pattern:** Service role key (bypasses RLS for all operations)
-- **Env vars:** `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWT_SECRET`
+- **Env vars:** `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
 
 ### 10.3 RudderStack
 
@@ -1659,7 +1659,6 @@ All environment variables are defined in `app/config.py` and injected via Dopple
 | **`SUPABASE_URL`** | Supabase project URL | paid-engine-x-api |
 | **`SUPABASE_ANON_KEY`** | Public anon key (for client auth) | paid-engine-x-api |
 | **`SUPABASE_SERVICE_ROLE_KEY`** | Service role key (bypasses RLS) | paid-engine-x-api |
-| **`SUPABASE_JWT_SECRET`** | JWT validation secret | paid-engine-x-api |
 | **`ANTHROPIC_API_KEY`** | Claude API authentication | paid-engine-x-api |
 | **`RUDDERSTACK_DATA_PLANE_URL`** | RudderStack data plane endpoint | paid-engine-x-api |
 | **`RUDDERSTACK_WRITE_KEY`** | RudderStack write key (Basic auth) | paid-engine-x-api |
@@ -1690,7 +1689,7 @@ All environment variables are defined in `app/config.py` and injected via Dopple
 **Bold = needed by creative-engine-x.** The rest stay in paid-engine-x.
 
 **creative-engine-x will need its own Doppler project** with:
-- `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWT_SECRET` (own Supabase project)
+- `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (own Supabase project)
 - `ANTHROPIC_API_KEY` (shared or own key)
 - `RUDDERSTACK_DATA_PLANE_URL`, `RUDDERSTACK_WRITE_KEY` (own source in RudderStack)
 - `APP_ENV`, `APP_URL`, `CORS_ORIGINS`

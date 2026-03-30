@@ -55,7 +55,7 @@ class TestLinkedInAuthorize:
 
         payload = jwt.decode(
             state_token,
-            settings.SUPABASE_JWT_SECRET,
+            settings.SUPABASE_SERVICE_ROLE_KEY,
             algorithms=["HS256"],
         )
         assert payload["org_id"] == "org-456"
@@ -77,7 +77,7 @@ class TestLinkedInCallback:
                 "nonce": "test-nonce",
                 "exp": datetime.now(UTC) + timedelta(minutes=30),
             },
-            settings.SUPABASE_JWT_SECRET,
+            settings.SUPABASE_SERVICE_ROLE_KEY,
             algorithm="HS256",
         )
 
@@ -143,7 +143,7 @@ class TestLinkedInCallback:
                 "nonce": "test",
                 "exp": datetime.now(UTC) - timedelta(minutes=5),
             },
-            settings.SUPABASE_JWT_SECRET,
+            settings.SUPABASE_SERVICE_ROLE_KEY,
             algorithm="HS256",
         )
 

@@ -74,8 +74,8 @@ app/
 ## Auth Flow
 
 1. JWT extracted from `Authorization: Bearer <token>` header
-2. Validated locally via PyJWT against `SUPABASE_JWT_SECRET`
-3. Tenant resolved from `X-Organization-Id` header (or default org)
+2. Validated via Better Auth EdDSA/JWKS
+3. Tenant resolved from JWT `org_id` claim
 4. User + tenant injected into route handlers via FastAPI dependencies
 
 ## Deployment

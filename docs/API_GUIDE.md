@@ -2,7 +2,7 @@
 
 ## Authentication
 
-All API requests require a JWT Bearer token from Supabase Auth.
+All API requests require a JWT Bearer token.
 
 ```bash
 # Sign up
@@ -20,11 +20,10 @@ Use the `access_token` in all subsequent requests:
 
 ```bash
 curl -H "Authorization: Bearer <access_token>" \
-     -H "X-Organization-Id: <org_id>" \
      https://api.example.com/assets/generate
 ```
 
-The `X-Organization-Id` header selects which organization context to use. If omitted, defaults to the user's first organization.
+Organization context is sourced from the verified JWT `org_id` claim.
 
 ---
 
@@ -44,7 +43,6 @@ curl -X POST https://api.example.com/orgs \
 ```bash
 curl -X POST https://api.example.com/campaigns \
   -H "Authorization: Bearer <token>" \
-  -H "X-Organization-Id: <org_id>" \
   -H "Content-Type: application/json" \
   -d '{"name": "Q1 Launch", "objective": "lead_generation"}'
 ```
@@ -54,7 +52,6 @@ curl -X POST https://api.example.com/campaigns \
 ```bash
 curl -X POST https://api.example.com/assets/generate \
   -H "Authorization: Bearer <token>" \
-  -H "X-Organization-Id: <org_id>" \
   -H "Content-Type: application/json" \
   -d '{
     "campaign_id": "<campaign_id>",
@@ -174,7 +171,6 @@ Track API usage per organization:
 
 ```bash
 curl -H "Authorization: Bearer <token>" \
-     -H "X-Organization-Id: <org_id>" \
      "https://api.example.com/usage?start_date=2025-01-01&end_date=2025-01-31&asset_type=ad_copy"
 ```
 

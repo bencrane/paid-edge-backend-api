@@ -506,8 +506,8 @@ ORDER BY (tenant_id, visitor_ip, resolved_at);
 
 ## 4. API Endpoints
 
-All endpoints require `Authorization: Bearer <supabase_jwt>` header.  
-Tenant is resolved from JWT → memberships → active organization (set via `X-Organization-Id` header or default org).
+All endpoints require `Authorization: Bearer <access_token>` header.  
+Tenant is resolved from verified JWT claims (`org_id`) and membership checks.
 
 ### 4.1 Auth
 
@@ -871,16 +871,15 @@ Request → CORS middleware → JWT validation → Tenant resolution → Route h
 
 ```python
 # Extract JWT from Authorization header
-# Validate against Supabase JWT secret
-# Extract user_id from JWT claims
+# Validate via Better Auth EdDSA/JWKS
+# Extract user_id + org_id from JWT claims
 ```
 
 ### 7.3 Tenant Resolution
 
 ```python
-# Check X-Organization-Id header
-# If present: verify user has membership in that org
-# If absent: use user's default/first org
+# Read org_id from verified JWT claims
+# Verify user has membership in that org
 # Inject tenant_id into request state for all downstream queries
 ```
 
@@ -891,7 +890,7 @@ async def get_current_user(request: Request) -> UserProfile:
     # From validated JWT
 
 async def get_tenant(request: Request, user: UserProfile) -> Organization:
-    # From X-Organization-Id header or default
+    # From JWT org_id claim
 
 async def get_clickhouse(tenant: Organization) -> ClickHouseClient:
     # Client with tenant_id pre-bound for query filtering
@@ -909,7 +908,6 @@ async def get_supabase(tenant: Organization) -> SupabaseClient:
 SUPABASE_URL=
 SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
-SUPABASE_JWT_SECRET=
 
 # ClickHouse
 CLICKHOUSE_HOST=gf9xtjjqyl.us-east-1.aws.clickhouse.cloud

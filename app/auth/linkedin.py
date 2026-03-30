@@ -59,7 +59,11 @@ async def linkedin_authorize(
         "nonce": nonce,
         "exp": datetime.now(UTC) + timedelta(minutes=STATE_JWT_EXPIRY_MINUTES),
     }
-    state = jwt.encode(state_payload, settings.SUPABASE_JWT_SECRET, algorithm=STATE_JWT_ALGORITHM)
+    state = jwt.encode(
+        state_payload,
+        settings.SUPABASE_SERVICE_ROLE_KEY,
+        algorithm=STATE_JWT_ALGORITHM,
+    )
 
     params = {
         "response_type": "code",
@@ -82,7 +86,7 @@ async def linkedin_callback(
 ):
     """Handle OAuth callback from LinkedIn."""
     # Handle LinkedIn error responses
-    if error:
+    if isinstance(error, str) and error:
         logger.warning("LinkedIn OAuth error: %s — %s", error, error_description)
         redirect_url = (
             f"{settings.FRONTEND_URL}/settings/integrations"
@@ -90,14 +94,14 @@ async def linkedin_callback(
         )
         return RedirectResponse(url=redirect_url)
 
-    if not code or not state:
+    if not isinstance(code, str) or not isinstance(state, str) or not code or not state:
         raise BadRequestError(detail="Missing code or state parameter")
 
     # Validate state JWT
     try:
         state_payload = jwt.decode(
             state,
-            settings.SUPABASE_JWT_SECRET,
+            settings.SUPABASE_SERVICE_ROLE_KEY,
             algorithms=[STATE_JWT_ALGORITHM],
         )
     except jwt.ExpiredSignatureError:

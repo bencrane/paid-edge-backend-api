@@ -68,7 +68,7 @@ CORE LOOP:
 Authentication:
   POST /auth/login → { access_token, refresh_token }
   All requests: Authorization: Bearer {access_token}
-  Tenant selection: X-Organization-Id: {org_uuid} (optional)
+  Tenant selection: JWT org_id claim
 
 Error format (all endpoints):
   {
