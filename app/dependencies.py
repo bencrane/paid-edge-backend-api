@@ -54,3 +54,16 @@ async def get_tenant(
 ) -> Organization:
     org_id = getattr(request.state, "org_id", None)
     return await resolve_tenant(user.id, org_id, supabase)
+
+
+async def get_google_ads_service(
+    tenant: Organization = Depends(get_tenant),
+    supabase: SupabaseClient = Depends(get_supabase),
+):
+    """Provide a GoogleAdsService instance for the current tenant."""
+    from app.integrations.google_ads import GoogleAdsClientFactory, GoogleAdsService
+
+    factory = GoogleAdsClientFactory()
+    client = await factory.get_client(tenant.id, supabase)
+    customer_id = await factory.get_customer_id(tenant.id, supabase)
+    return GoogleAdsService(client, customer_id)
